@@ -1,4 +1,11 @@
-import { ChevronLeft, ChevronRight, Trash2, Clock } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+  Tag,
+  Users,
+  CalendarClock,
+} from 'lucide-react'
 import {
   ESTADO_META,
   ESTADOS,
@@ -7,7 +14,7 @@ import {
   type Pedido,
 } from '../types'
 import { CategoriaChip } from './ui/Badges'
-import { formatFecha } from '../services/exportService'
+import { esVencido, etiquetaVence, formatVence } from '../lib/fechas'
 
 interface KanbanBoardProps {
   pedidos: Pedido[]
@@ -53,16 +60,36 @@ function Tarjeta({
         {p.persona_solicita && (
           <span className="chip bg-slate-100 text-slate-600">👤 {p.persona_solicita}</span>
         )}
+        {p.equipo && (
+          <span className="chip bg-slate-100 text-slate-600">
+            <Tag size={11} />
+            {p.equipo}
+          </span>
+        )}
+        {p.responsable && (
+          <span className="chip bg-slate-100 text-slate-600">
+            <Users size={11} />
+            {p.responsable}
+          </span>
+        )}
         {p.categorias.map((c) => (
           <CategoriaChip key={c} categoria={c} />
         ))}
       </div>
 
       <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
-        <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
-          <Clock size={11} />
-          {formatFecha(p.created_at)}
-        </span>
+        {p.fecha_vencimiento ? (
+          <span
+            className={`inline-flex items-center gap-1 text-[11px] font-semibold ${
+              esVencido(p) ? 'text-red-600' : 'text-slate-500'
+            }`}
+          >
+            <CalendarClock size={11} />
+            {formatVence(p.fecha_vencimiento)} · {etiquetaVence(p.fecha_vencimiento)}
+          </span>
+        ) : (
+          <span className="text-[11px] text-slate-300">sin fecha</span>
+        )}
         <div className="flex items-center gap-1">
           {meta.previo && (
             <button

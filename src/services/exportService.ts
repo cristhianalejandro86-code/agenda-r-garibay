@@ -9,14 +9,14 @@ import {
   type FilterState,
   type Pedido,
 } from '../types'
+import { esVencido, formatVence } from '../lib/fechas'
 
 // ════════════════════════════════════════════════════════════════════
 //  Exportación con formato ejecutivo — Excel (exceljs) · PDF (jspdf) · CSV
 //
-//  Diseño: las funciones `construir*` son ISOMÓRFICAS (navegador y Node)
-//  y solo arman el artefacto. Las funciones `exportTo*` envuelven la
-//  descarga en el navegador. Así un script puede generar hojas reales
-//  para que agentes visuales las auditen.
+//  `construir*` son ISOMÓRFICAS (navegador y Node); `exportTo*` envuelven
+//  la descarga. Las columnas se definen una sola vez (sistema de columnas):
+//  Excel/CSV usan el set COMPLETO; el PDF usa un subconjunto escaneable.
 // ════════════════════════════════════════════════════════════════════
 
 // ── Filtro y utilidades de datos ─────────────────────────────────────
@@ -33,6 +33,8 @@ export function filterPedidos(pedidos: Pedido[], f: FilterState): Pedido[] {
         const blob = [
           p.descripcion,
           p.persona_solicita ?? '',
+          p.responsable ?? '',
+          p.equipo ?? '',
           p.notas ?? '',
           p.reunion ?? '',
           p.categorias.join(' '),
@@ -69,34 +71,81 @@ function selloArchivo(): string {
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`
 }
 
-const ENCABEZADOS = [
-  'Fecha',
-  'Solicita',
-  'Descripción',
-  'Prioridad',
-  'Categorías',
-  'Estado',
-  'Reunión',
-  'Notas',
-]
+// ── Definición de columnas (una sola fuente de verdad) ───────────────
 
-function fila(p: Pedido): string[] {
-  return [
-    formatFecha(p.created_at),
-    p.persona_solicita ?? '—',
-    p.descripcion,
-    PRIORIDAD_META[p.prioridad].label,
-    p.categorias.join(', '),
-    ESTADO_META[p.estado].label,
-    p.reunion ?? '',
-    p.notas ?? '',
-  ]
+type ColTipo = 'prioridad' | 'estado' | 'vence'
+interface Col {
+  h: string
+  get: (p: Pedido) => string
+  xlW: number // ancho Excel
+  pdfW?: number | 'auto' // ancho PDF (pt)
+  center?: boolean
+  wrap?: boolean
+  tipo?: ColTipo
 }
 
-// ── Resumen ejecutivo ────────────────────────────────────────────────
+const C: Record<string, Col> = {
+  fecha: { h: 'Creado', get: (p) => formatFecha(p.created_at), xlW: 17 },
+  vence: {
+    h: 'Vence',
+    get: (p) => (p.fecha_vencimiento ? formatVence(p.fecha_vencimiento) : ''),
+    xlW: 12,
+    pdfW: 66,
+    center: true,
+    tipo: 'vence',
+  },
+  prioridad: {
+    h: 'Prioridad',
+    get: (p) => PRIORIDAD_META[p.prioridad].label,
+    xlW: 11,
+    pdfW: 52,
+    center: true,
+    tipo: 'prioridad',
+  },
+  estado: {
+    h: 'Estado',
+    get: (p) => ESTADO_META[p.estado].label,
+    xlW: 13,
+    pdfW: 64,
+    center: true,
+    tipo: 'estado',
+  },
+  equipo: { h: 'Equipo', get: (p) => p.equipo ?? '', xlW: 14, pdfW: 66 },
+  descripcion: {
+    h: 'Descripción',
+    get: (p) => p.descripcion,
+    xlW: 46,
+    pdfW: 188,
+    wrap: true,
+  },
+  solicita: { h: 'Solicita', get: (p) => p.persona_solicita ?? '', xlW: 13, pdfW: 56 },
+  responsable: { h: 'Responsable', get: (p) => p.responsable ?? '', xlW: 14, pdfW: 70 },
+  tipo: { h: 'Tipo', get: (p) => p.tipo ?? '', xlW: 13 },
+  categorias: {
+    h: 'Categorías',
+    get: (p) => p.categorias.join(', '),
+    xlW: 18,
+    pdfW: 'auto',
+  },
+  reunion: { h: 'Reunión', get: (p) => p.reunion ?? '', xlW: 20 },
+  notas: { h: 'Notas', get: (p) => p.notas ?? '', xlW: 34, wrap: true },
+}
+
+// Excel/CSV: completo. PDF: subconjunto escaneable (lo que el gerente mira).
+const COLS_XL: Col[] = [
+  C.fecha, C.vence, C.prioridad, C.estado, C.equipo, C.descripcion,
+  C.solicita, C.responsable, C.tipo, C.categorias, C.reunion, C.notas,
+]
+const COLS_PDF: Col[] = [
+  C.vence, C.prioridad, C.estado, C.equipo, C.descripcion,
+  C.solicita, C.responsable, C.categorias,
+]
+
+// ── Resumen ejecutivo / KPIs ─────────────────────────────────────────
 
 export interface Kpis {
   total: number
+  vencidos: number
   altaPendiente: number
   enProgreso: number
   completados: number
@@ -112,8 +161,9 @@ export function kpis(pedidos: Pedido[]): Kpis {
   const altaPendiente = pedidos.filter(
     (p) => p.prioridad === 'alta' && p.estado !== 'completado',
   ).length
+  const vencidos = pedidos.filter((p) => esVencido(p)).length
   const avance = total ? Math.round((completados / total) * 100) : 0
-  return { total, altaPendiente, enProgreso, completados, nuevos, avance }
+  return { total, vencidos, altaPendiente, enProgreso, completados, nuevos, avance }
 }
 
 export function resumen(pedidos: Pedido[]): {
@@ -145,7 +195,7 @@ export function resumen(pedidos: Pedido[]): {
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  CSV  (texto plano: limpio y listo para reimportar)
+//  CSV  (texto plano, reimportable)
 // ════════════════════════════════════════════════════════════════════
 
 function celdaCSV(v: string): string {
@@ -153,29 +203,17 @@ function celdaCSV(v: string): string {
 }
 
 export function construirCsv(pedidos: Pedido[]): string {
-  // Para CSV (reimportable) los vacíos van en blanco, sin el '—' de display.
-  const filaCsv = (p: Pedido): string[] => [
-    formatFecha(p.created_at),
-    p.persona_solicita ?? '',
-    p.descripcion,
-    PRIORIDAD_META[p.prioridad].label,
-    p.categorias.join(', '),
-    ESTADO_META[p.estado].label,
-    p.reunion ?? '',
-    p.notas ?? '',
-  ]
   const lineas = [
-    ENCABEZADOS.join(';'),
-    ...pedidos.map((p) => filaCsv(p).map(celdaCSV).join(';')),
+    COLS_XL.map((c) => c.h).join(';'),
+    ...pedidos.map((p) => COLS_XL.map((c) => celdaCSV(c.get(p))).join(';')),
   ]
-  return '﻿' + lineas.join('\r\n') // BOM UTF-8: Excel respeta los acentos
+  return '﻿' + lineas.join('\r\n') // BOM UTF-8: tildes OK en Excel
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  EXCEL  (exceljs — estilos reales: marca, color por prioridad/estado)
+//  EXCEL  (exceljs — color por prioridad/estado, rojo si vencido)
 // ════════════════════════════════════════════════════════════════════
 
-// Paleta ARGB (relleno suave + texto oscuro para contraste legible)
 const XL = {
   brand: 'FF003DA5',
   brandSoft: 'FFE8F2FC',
@@ -204,26 +242,16 @@ export async function construirWorkbook(pedidos: Pedido[]): Promise<Workbook> {
   wb.created = new Date()
 
   const k = kpis(pedidos)
-  const NCOL = ENCABEZADOS.length
+  const N = COLS_XL.length
 
-  // ───────────────────────── Hoja: Pedidos ─────────────────────────
   const ws = wb.addWorksheet('Pedidos', {
     views: [{ state: 'frozen', ySplit: 4 }],
     pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   })
-  ws.columns = [
-    { width: 17 },
-    { width: 12 },
-    { width: 50 },
-    { width: 11 },
-    { width: 20 },
-    { width: 14 },
-    { width: 22 },
-    { width: 38 },
-  ]
+  ws.columns = COLS_XL.map((c) => ({ width: c.xlW }))
 
-  // Título (fila 1) + metadatos (fila 2)
-  ws.mergeCells(1, 1, 1, NCOL)
+  // Título + metadatos
+  ws.mergeCells(1, 1, 1, N)
   const t = ws.getCell(1, 1)
   t.value = 'AGENDA R. GARIBAY — Pedidos de mantenimiento'
   t.font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FFFFFFFF' } }
@@ -231,9 +259,8 @@ export async function construirWorkbook(pedidos: Pedido[]): Promise<Workbook> {
   t.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
   ws.getRow(1).height = 30
 
-  ws.mergeCells(2, 1, 2, NCOL)
+  ws.mergeCells(2, 1, 2, N)
   const sub = ws.getCell(2, 1)
-  // "Alta pendientes" resaltado en rojo: es el dato de acción del gerente.
   sub.value = {
     richText: [
       {
@@ -241,7 +268,7 @@ export async function construirWorkbook(pedidos: Pedido[]): Promise<Workbook> {
         font: { name: 'Calibri', size: 10, color: { argb: XL.gris } },
       },
       {
-        text: `Alta pendientes: ${k.altaPendiente}`,
+        text: `Vencidos: ${k.vencidos}   ·   Alta pendientes: ${k.altaPendiente}`,
         font: { name: 'Calibri', size: 10, bold: true, color: { argb: XL.rojo } },
       },
     ],
@@ -249,24 +276,22 @@ export async function construirWorkbook(pedidos: Pedido[]): Promise<Workbook> {
   sub.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.brandSoft } }
   sub.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
   ws.getRow(2).height = 18
-  ws.getRow(3).height = 6 // respiro
+  ws.getRow(3).height = 6
 
   // Encabezados (fila 4)
   const head = ws.getRow(4)
-  ENCABEZADOS.forEach((h, i) => {
-    const c = head.getCell(i + 1)
-    c.value = h
-    c.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } }
-    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.brand } }
-    c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
-    c.border = { bottom: { style: 'thin', color: { argb: XL.brand } } }
+  COLS_XL.forEach((c, i) => {
+    const cell = head.getCell(i + 1)
+    cell.value = c.h
+    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.brand } }
+    cell.alignment = { vertical: 'middle', horizontal: c.center ? 'center' : 'left', indent: 1 }
   })
   head.height = 22
 
   // Datos
   pedidos.forEach((p, idx) => {
-    const r = ws.addRow(fila(p))
-    // Alto según el texto más largo (descripción/notas) para que no se corte.
+    const r = ws.addRow(COLS_XL.map((c) => c.get(p)))
     const lineas = Math.max(
       1,
       Math.ceil((p.descripcion?.length ?? 0) / 46),
@@ -274,44 +299,45 @@ export async function construirWorkbook(pedidos: Pedido[]): Promise<Workbook> {
     )
     r.height = 15 * lineas + 10
     const zebra = idx % 2 === 1
-    r.eachCell({ includeEmpty: true }, (cell, col) => {
+    const vencido = esVencido(p)
+    COLS_XL.forEach((c, ci) => {
+      const cell = r.getCell(ci + 1)
       cell.font = { name: 'Calibri', size: 10, color: { argb: XL.ink } }
       cell.alignment = {
         vertical: 'middle',
-        horizontal: col === 1 || col === 4 || col === 6 ? 'center' : 'left',
-        wrapText: col === 3 || col === 8,
+        horizontal: c.center ? 'center' : 'left',
+        wrapText: c.wrap,
         indent: 1,
       }
-      cell.border = {
-        bottom: { style: 'hair', color: { argb: XL.borde } },
-      }
+      cell.border = { bottom: { style: 'hair', color: { argb: XL.borde } } }
       if (zebra) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.zebra } }
+      if (c.tipo === 'prioridad') {
+        const m = XL_PRIORIDAD[PRIORIDAD_META[p.prioridad].label]
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: m.bg } }
+        cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: m.fg } }
+      } else if (c.tipo === 'estado') {
+        const m = XL_ESTADO[ESTADO_META[p.estado].label]
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: m.bg } }
+        cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: m.fg } }
+      } else if (c.tipo === 'vence' && vencido) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFBDDDD' } }
+        cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: XL.rojo } }
+      }
     })
-    // Prioridad (col 4) y Estado (col 6): color semántico
-    const pc = r.getCell(4)
-    const pm = XL_PRIORIDAD[PRIORIDAD_META[p.prioridad].label]
-    pc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: pm.bg } }
-    pc.font = { name: 'Calibri', size: 10, bold: true, color: { argb: pm.fg } }
-    const ec = r.getCell(6)
-    const em = XL_ESTADO[ESTADO_META[p.estado].label]
-    ec.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: em.bg } }
-    ec.font = { name: 'Calibri', size: 10, bold: true, color: { argb: em.fg } }
   })
 
   if (pedidos.length === 0) {
     const r = ws.addRow(['(sin pedidos para los filtros actuales)'])
-    ws.mergeCells(r.number, 1, r.number, NCOL)
+    ws.mergeCells(r.number, 1, r.number, N)
     r.getCell(1).font = { italic: true, color: { argb: XL.gris } }
     r.getCell(1).alignment = { horizontal: 'center' }
   }
 
-  ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: NCOL } }
+  ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: N } }
 
-  // ───────────────────────── Hoja: Resumen ─────────────────────────
-  const rs = wb.addWorksheet('Resumen', {
-    pageSetup: { orientation: 'portrait' },
-  })
-  rs.columns = [{ width: 26 }, { width: 14 }, { width: 4 }, { width: 26 }, { width: 14 }]
+  // ── Hoja Resumen ──
+  const rs = wb.addWorksheet('Resumen', { pageSetup: { orientation: 'portrait' } })
+  rs.columns = [18, 18, 18, 18, 18].map((width) => ({ width }))
 
   rs.mergeCells(1, 1, 1, 5)
   const rt = rs.getCell(1, 1)
@@ -321,10 +347,10 @@ export async function construirWorkbook(pedidos: Pedido[]): Promise<Workbook> {
   rt.alignment = { vertical: 'middle', indent: 1 }
   rs.getRow(1).height = 28
 
-  // Tarjetas KPI (fila 3-4): etiqueta arriba, número grande abajo
   const tarjetas: [string, string | number, string][] = [
-    ['Total de pedidos', k.total, XL.brand],
-    ['Alta · pendientes', k.altaPendiente, 'FFC81E1E'],
+    ['Total', k.total, XL.brand],
+    ['Vencidos', k.vencidos, 'FFC81E1E'],
+    ['Alta · pend.', k.altaPendiente, 'FFEA580C'],
     ['En progreso', k.enProgreso, 'FF6D28D9'],
     ['Avance', `${k.avance}%`, 'FF15803D'],
   ]
@@ -336,17 +362,20 @@ export async function construirWorkbook(pedidos: Pedido[]): Promise<Workbook> {
     lc.alignment = { horizontal: 'center' }
     const vc = rs.getCell(4, col)
     vc.value = val
-    vc.font = { size: 22, bold: true, color: { argb: color } }
+    vc.font = { size: 20, bold: true, color: { argb: color } }
     vc.alignment = { horizontal: 'center', vertical: 'middle' }
     vc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: XL.brandSoft } }
     vc.border = { bottom: { style: 'medium', color: { argb: color } } }
   })
-  rs.getRow(4).height = 34
+  rs.getRow(4).height = 32
 
-  // Bloques de desglose
   const r = resumen(pedidos)
   let fila0 = 6
-  const bloque = (titulo: string, datos: [string, number][], colMap?: Record<string, { bg: string; fg: string }>) => {
+  const bloque = (
+    titulo: string,
+    datos: [string, number][],
+    colMap?: Record<string, { bg: string; fg: string }>,
+  ) => {
     rs.mergeCells(fila0, 1, fila0, 2)
     const h = rs.getCell(fila0, 1)
     h.value = titulo
@@ -363,7 +392,7 @@ export async function construirWorkbook(pedidos: Pedido[]): Promise<Workbook> {
       b.value = v
       b.font = { size: 10, bold: true, color: { argb: XL.ink } }
       b.alignment = { horizontal: 'center' }
-      if (colMap && colMap[k2]) {
+      if (colMap?.[k2]) {
         a.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colMap[k2].bg } }
         a.font = { size: 10, bold: true, color: { argb: colMap[k2].fg } }
       }
@@ -379,7 +408,7 @@ export async function construirWorkbook(pedidos: Pedido[]): Promise<Workbook> {
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  PDF  (jspdf + autotable — banda de marca, tira de KPIs, tabla)
+//  PDF  (jspdf + autotable — tira de KPIs, color por prioridad/estado/vencido)
 // ════════════════════════════════════════════════════════════════════
 
 const PDF_PRIORIDAD: Record<string, { bg: [number, number, number]; fg: [number, number, number] }> = {
@@ -392,6 +421,7 @@ const PDF_ESTADO: Record<string, { bg: [number, number, number]; fg: [number, nu
   'En progreso': { bg: [239, 233, 251], fg: [109, 40, 217] },
   Completado: { bg: [230, 245, 236], fg: [21, 128, 61] },
 }
+const PDF_VENCIDO = { bg: [248, 209, 209] as [number, number, number], fg: [185, 28, 28] as [number, number, number] }
 
 export async function construirPdf(pedidos: Pedido[]): Promise<jsPDF> {
   const { jsPDF } = await import('jspdf')
@@ -400,6 +430,7 @@ export async function construirPdf(pedidos: Pedido[]): Promise<jsPDF> {
   const W = doc.internal.pageSize.getWidth()
   const M = 40
   const k = kpis(pedidos)
+  const overdue = pedidos.map((p) => esVencido(p))
 
   // Banda de marca
   doc.setFillColor(0, 61, 165)
@@ -412,22 +443,20 @@ export async function construirPdf(pedidos: Pedido[]): Promise<jsPDF> {
   doc.setFontSize(9.5)
   doc.text('Pedidos de mantenimiento mecánico · Planta de Beneficio SHP', M, 46)
   doc.setFontSize(9)
-  doc.text(
-    `${k.total} pedido(s)  ·  ${formatFecha(new Date().toISOString())}`,
-    W - M,
-    30,
-    { align: 'right' },
-  )
+  doc.text(`${k.total} pedido(s)  ·  ${formatFecha(new Date().toISOString())}`, W - M, 30, {
+    align: 'right',
+  })
 
-  // Tira de KPIs (tarjetas)
+  // Tira de KPIs (5)
   const tarjetas: [string, string, [number, number, number]][] = [
     ['TOTAL', String(k.total), [0, 61, 165]],
-    ['ALTA · PENDIENTES', String(k.altaPendiente), [200, 30, 30]],
+    ['VENCIDOS', String(k.vencidos), [200, 30, 30]],
+    ['ALTA · PEND.', String(k.altaPendiente), [234, 88, 12]],
     ['EN PROGRESO', String(k.enProgreso), [109, 40, 217]],
     ['AVANCE', `${k.avance}%`, [21, 128, 61]],
   ]
   const gap = 12
-  const cardW = (W - M * 2 - gap * 3) / 4
+  const cardW = (W - M * 2 - gap * 4) / 5
   const cardY = 70
   const cardH = 50
   tarjetas.forEach(([label, val, color], i) => {
@@ -445,34 +474,48 @@ export async function construirPdf(pedidos: Pedido[]): Promise<jsPDF> {
     doc.text(val, x + 14, cardY + 40)
   })
 
-  // Tabla
+  // Índices de columna por tipo (para colorear)
+  const idxPrioridad = COLS_PDF.findIndex((c) => c.tipo === 'prioridad')
+  const idxEstado = COLS_PDF.findIndex((c) => c.tipo === 'estado')
+  const idxVence = COLS_PDF.findIndex((c) => c.tipo === 'vence')
+
+  const columnStyles: Record<number, { cellWidth: number | 'auto'; halign?: 'center'; fontStyle?: 'bold' }> = {}
+  COLS_PDF.forEach((c, i) => {
+    columnStyles[i] = {
+      cellWidth: c.pdfW ?? 'auto',
+      ...(c.center ? { halign: 'center' as const } : {}),
+      ...(c.tipo ? { fontStyle: 'bold' as const } : {}),
+    }
+  })
+
   autoTable(doc, {
     startY: cardY + cardH + 14,
-    head: [ENCABEZADOS],
-    body: pedidos.map(fila),
-    styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak', valign: 'middle', lineColor: [226, 232, 240], lineWidth: 0.5 },
+    head: [COLS_PDF.map((c) => c.h)],
+    body: pedidos.map((p) => COLS_PDF.map((c) => c.get(p))),
+    styles: {
+      fontSize: 8,
+      cellPadding: 4,
+      overflow: 'linebreak',
+      valign: 'middle',
+      lineColor: [226, 232, 240],
+      lineWidth: 0.5,
+    },
     headStyles: { fillColor: [0, 61, 165], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
     alternateRowStyles: { fillColor: [247, 250, 253] },
-    columnStyles: {
-      0: { cellWidth: 76 },
-      1: { cellWidth: 54 },
-      2: { cellWidth: 198 },
-      3: { cellWidth: 50, halign: 'center', fontStyle: 'bold' },
-      4: { cellWidth: 88 },
-      5: { cellWidth: 64, halign: 'center', fontStyle: 'bold' },
-      7: { cellWidth: 'auto' },
-    },
+    columnStyles,
     margin: { left: M, right: M },
     didParseCell: (data) => {
       if (data.section !== 'body') return
       const raw = String(data.cell.raw ?? '')
-      if (data.column.index === 3 && PDF_PRIORIDAD[raw]) {
+      if (data.column.index === idxPrioridad && PDF_PRIORIDAD[raw]) {
         data.cell.styles.fillColor = PDF_PRIORIDAD[raw].bg
         data.cell.styles.textColor = PDF_PRIORIDAD[raw].fg
-      }
-      if (data.column.index === 5 && PDF_ESTADO[raw]) {
+      } else if (data.column.index === idxEstado && PDF_ESTADO[raw]) {
         data.cell.styles.fillColor = PDF_ESTADO[raw].bg
         data.cell.styles.textColor = PDF_ESTADO[raw].fg
+      } else if (data.column.index === idxVence && overdue[data.row.index]) {
+        data.cell.styles.fillColor = PDF_VENCIDO.bg
+        data.cell.styles.textColor = PDF_VENCIDO.fg
       }
     },
   })

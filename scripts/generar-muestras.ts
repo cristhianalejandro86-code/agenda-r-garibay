@@ -35,7 +35,24 @@ const M: Omit<Pedido, 'user_id'>[] = [
   { id: '12', persona_solicita: 'Shi', descripcion: 'termografía a tablero eléctrico de ball mill', prioridad: 'normal', categorias: ['HPGR'], estado: 'completado', notas: 'Sin puntos calientes', reunion: 'Comité semanal', created_at: iso(10), updated_at: iso(10) },
 ]
 
-const pedidos = M.map((p) => ({ ...p, user_id: 'muestra' })) as Pedido[]
+function vence(dias: number): string {
+  const d = new Date(Date.UTC(2026, 5, 15) + dias * 86_400_000)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`
+}
+const venc = [-2, 1, 5, -1, null, null, 8, 14, null, null, null, null]
+const resp = ['Pérez', 'Rojas', 'Pérez', 'Mecánica A', 'Shi', null, 'Rojas', 'Contrata HPGR', 'Quispe', null, null, 'Shi']
+const equipos = ['034-001', 'FP-02', 'SM-219-3', 'ESP-054-1', '025', 'Faja-01', 'BBA-217', 'HPGR-01', 'MAG-3', 'FP-01', null, 'BM-034']
+const tipos = ['Correctivo', 'Correctivo', 'Inspección', 'Correctivo', 'Predictivo', 'Preventivo', 'Correctivo', 'Mejora', 'Correctivo', 'Preventivo', 'Otro', 'Predictivo']
+
+const pedidos = M.map((p, i) => ({
+  ...p,
+  user_id: 'muestra',
+  fecha_vencimiento: venc[i] == null ? null : vence(venc[i] as number),
+  responsable: resp[i] ?? null,
+  equipo: equipos[i] ?? null,
+  tipo: tipos[i] ?? null,
+})) as Pedido[]
 
 const wb = await construirWorkbook(pedidos)
 await wb.xlsx.writeFile(join(OUT, 'muestra.xlsx'))

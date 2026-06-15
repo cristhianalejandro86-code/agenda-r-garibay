@@ -1,4 +1,4 @@
-import type { NuevoPedido, Pedido } from '../types'
+import type { NuevoPedido, Pedido, TipoPedido } from '../types'
 import type { PedidosRepo } from '../services/pedidosService'
 
 // ════════════════════════════════════════════════════════════════════
@@ -23,8 +23,20 @@ function hace(dias: number, horas = 0): string {
   return new Date(t).toISOString()
 }
 
+/** Fecha YYYY-MM-DD relativa a hoy (negativo = pasado/vencido). */
+function vence(dias: number): string {
+  const d = new Date(Date.now() + dias * 86_400_000)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
 function semilla(): Pedido[] {
-  const base: Array<Omit<Pedido, 'id' | 'user_id' | 'updated_at'>> = [
+  const base: Array<
+    Omit<
+      Pedido,
+      'id' | 'user_id' | 'updated_at' | 'fecha_vencimiento' | 'responsable' | 'equipo' | 'tipo'
+    >
+  > = [
     {
       persona_solicita: 'Shi',
       descripcion: 'revisar grease ball mill 034-001, ruido en piñón',
@@ -147,10 +159,20 @@ function semilla(): Pedido[] {
     },
   ]
 
-  return base.map((b) => ({
+  // Variedad para mostrar los campos nuevos (índices 0 y 3 quedan vencidos).
+  const venc: (number | null)[] = [-2, 1, 5, -1, null, null, 8, 14, null, null, null, null]
+  const resp: (string | null)[] = ['Pérez', 'Rojas', 'Pérez', 'Mecánica A', 'Shi', null, 'Rojas', 'Contrata HPGR', 'Quispe', null, null, 'Shi']
+  const equipos: (string | null)[] = ['034-001', 'FP-02', 'SM-219-3', 'ESP-054-1', '025', 'Faja-01', 'BBA-217', 'HPGR-01', 'MAG-3', 'FP-01', null, 'BM-034']
+  const tipos: (TipoPedido | null)[] = ['Correctivo', 'Correctivo', 'Inspección', 'Correctivo', 'Predictivo', 'Preventivo', 'Correctivo', 'Mejora', 'Correctivo', 'Preventivo', 'Otro', 'Predictivo']
+
+  return base.map((b, i) => ({
     ...b,
     id: id(),
     user_id: USER_DEMO,
+    fecha_vencimiento: venc[i] == null ? null : vence(venc[i] as number),
+    responsable: resp[i] ?? null,
+    equipo: equipos[i] ?? null,
+    tipo: tipos[i] ?? null,
     updated_at: b.created_at,
   }))
 }

@@ -97,6 +97,10 @@ export function parsedToNuevoPedido(parsed: ParsedInput): NuevoPedido {
     estado: 'nuevo',
     notas: null,
     reunion: null,
+    fecha_vencimiento: null,
+    responsable: null,
+    equipo: null,
+    tipo: null,
   }
 }
 
@@ -116,7 +120,7 @@ export interface PedidosRepo {
 // ── Implementación Supabase ──────────────────────────────────────────
 
 const COLUMNAS =
-  'id,user_id,persona_solicita,descripcion,prioridad,categorias,estado,notas,reunion,created_at,updated_at'
+  'id,user_id,persona_solicita,descripcion,prioridad,categorias,estado,notas,reunion,fecha_vencimiento,responsable,equipo,tipo,created_at,updated_at'
 
 export const supabaseRepo: PedidosRepo = {
   async fetch(userId) {

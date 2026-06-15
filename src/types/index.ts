@@ -8,6 +8,15 @@ export type Estado = 'nuevo' | 'en_progreso' | 'completado'
 /** Circuitos de la planta usados como categorías de un pedido. */
 export type Categoria = 'HPGR' | 'Filtros' | 'Magnética' | 'Relaves'
 
+/** Tipo de mantenimiento/actividad del pedido. */
+export type TipoPedido =
+  | 'Correctivo'
+  | 'Preventivo'
+  | 'Predictivo'
+  | 'Inspección'
+  | 'Mejora'
+  | 'Otro'
+
 /** Fila de la tabla `public.pedidos` en Supabase. */
 export interface Pedido {
   id: string
@@ -19,6 +28,13 @@ export interface Pedido {
   estado: Estado
   notas: string | null
   reunion: string | null
+  /** Fecha límite (YYYY-MM-DD) o null si sin fecha. */
+  fecha_vencimiento: string | null
+  /** A quién se asigna la ejecución (distinto de persona_solicita). */
+  responsable: string | null
+  /** Equipo/TAG afectado (ej. 034-001, FP-02). */
+  equipo: string | null
+  tipo: TipoPedido | null
   created_at: string
   updated_at: string
 }
@@ -32,6 +48,10 @@ export interface NuevoPedido {
   estado: Estado
   notas: string | null
   reunion: string | null
+  fecha_vencimiento: string | null
+  responsable: string | null
+  equipo: string | null
+  tipo: TipoPedido | null
 }
 
 /** Resultado del parseo del texto libre del input. */
@@ -105,4 +125,22 @@ export const CATEGORIA_META: Record<Categoria, { color: string }> = {
   Filtros: { color: '#0E7490' },
   Magnética: { color: '#7C3AED' },
   Relaves: { color: '#B45309' },
+}
+
+export const TIPOS: TipoPedido[] = [
+  'Correctivo',
+  'Preventivo',
+  'Predictivo',
+  'Inspección',
+  'Mejora',
+  'Otro',
+]
+
+export const TIPO_META: Record<TipoPedido, { color: string }> = {
+  Correctivo: { color: '#DC2626' },
+  Preventivo: { color: '#0E7490' },
+  Predictivo: { color: '#7C3AED' },
+  Inspección: { color: '#2563EB' },
+  Mejora: { color: '#16A34A' },
+  Otro: { color: '#64748B' },
 }

@@ -21,6 +21,7 @@ import {
   TrendingUp,
   Layers,
   Users,
+  CalendarX2,
 } from 'lucide-react'
 import {
   CATEGORIA_META,
@@ -29,6 +30,7 @@ import {
   type Pedido,
 } from '../types'
 import { KpiCard } from './ui/KpiCard'
+import { esVencido } from '../lib/fechas'
 
 interface StatsSummaryProps {
   pedidos: Pedido[]
@@ -91,6 +93,8 @@ export function StatsSummary({ pedidos }: StatsSummaryProps) {
       (p) => p.prioridad === 'alta' && p.estado !== 'completado',
     ).length
 
+    const vencidos = pedidos.filter((p) => esVencido(p)).length
+
     const avance = total ? Math.round((porEstado.completado / total) * 100) : 0
 
     // Tendencia: últimos 10 días
@@ -139,6 +143,7 @@ export function StatsSummary({ pedidos }: StatsSummaryProps) {
       porEstado,
       porPrioridad,
       altaPendiente,
+      vencidos,
       avance,
       dias,
       dataEstado,
@@ -158,7 +163,7 @@ export function StatsSummary({ pedidos }: StatsSummaryProps) {
   return (
     <div className="space-y-4">
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-5">
         <KpiCard
           icono={ClipboardList}
           etiqueta="Total pedidos"
@@ -166,11 +171,18 @@ export function StatsSummary({ pedidos }: StatsSummaryProps) {
           color="#003DA5"
         />
         <KpiCard
+          icono={CalendarX2}
+          etiqueta="Vencidos"
+          valor={stats.vencidos}
+          color="#DC2626"
+          subtitulo="pasados de fecha"
+        />
+        <KpiCard
           icono={AlertTriangle}
           etiqueta="Alta · pendientes"
           valor={stats.altaPendiente}
-          color="#DC2626"
-          subtitulo="prioridad alta sin completar"
+          color="#EA580C"
+          subtitulo="alta sin completar"
         />
         <KpiCard
           icono={Loader2}
@@ -183,7 +195,7 @@ export function StatsSummary({ pedidos }: StatsSummaryProps) {
           etiqueta="Avance"
           valor={`${stats.avance}%`}
           color="#16A34A"
-          subtitulo={`${stats.porEstado.completado} completado(s)`}
+          subtitulo={`${stats.porEstado.completado} compl.`}
           progreso={stats.avance}
         />
       </div>

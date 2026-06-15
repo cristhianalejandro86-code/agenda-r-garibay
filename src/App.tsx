@@ -111,7 +111,7 @@ function AppAutenticado({
     error,
     sincronizando,
     modo,
-    agregarDesdeTexto,
+    agregarPedido,
     cambiarEstado,
     actualizarPedido,
     eliminarPedido,
@@ -141,11 +141,7 @@ function AppAutenticado({
       />
 
       <main className="mx-auto max-w-7xl space-y-4 px-4 py-5 sm:px-6 sm:py-6">
-        <InputForm
-          onCapturar={(texto, reunion) =>
-            agregarDesdeTexto(texto, reunion ? { reunion } : undefined)
-          }
-        />
+        <InputForm onAgregar={agregarPedido} personas={personas} />
 
         {error && (
           <div className="flex items-center gap-2 rounded-input border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
