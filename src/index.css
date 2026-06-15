@@ -1,0 +1,108 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-slate-100 text-slate-800 antialiased;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background-image: radial-gradient(
+        1200px 600px at 80% -10%,
+        rgba(91, 164, 230, 0.18),
+        transparent 60%
+      ),
+      radial-gradient(900px 500px at -10% 10%, rgba(0, 61, 165, 0.08), transparent 55%);
+    background-attachment: fixed;
+  }
+
+  /* Tipografía base 16px, contraste alto */
+  body,
+  input,
+  button,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* Focus visible accesible (celeste Alianza) */
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(91, 164, 230, 0.55);
+    border-radius: 8px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0, 61, 165, 0.25);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 61, 165, 0.45);
+  }
+}
+
+@layer components {
+  .tarjeta {
+    @apply rounded-card border border-slate-200/80 bg-white shadow-n2;
+  }
+
+  .seccion {
+    @apply rounded-section border border-slate-200/80 bg-white shadow-n2;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-btn px-4 py-2.5 font-semibold
+      transition-all duration-300 ease-suave focus-visible:shadow-ring disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primario {
+    @apply btn bg-gradient-alianza text-white shadow-n2 hover:shadow-n3 hover:brightness-110 active:brightness-95;
+  }
+
+  .btn-secundario {
+    @apply btn border border-alianza-blue/25 bg-white text-alianza-blue hover:bg-alianza-celeste-soft;
+  }
+
+  .btn-fantasma {
+    @apply btn text-slate-600 hover:bg-slate-100;
+  }
+
+  .input-base {
+    @apply w-full rounded-input border border-slate-300 bg-white px-3.5 py-2.5 text-slate-800
+      placeholder:text-slate-400 transition-colors duration-200
+      focus:border-alianza-celeste focus:outline-none;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold;
+  }
+
+  .etiqueta {
+    @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
+  }
+}
+
+/* Respeta a quien prefiere menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
