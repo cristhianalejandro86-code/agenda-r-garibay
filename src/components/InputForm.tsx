@@ -117,14 +117,17 @@ export function InputForm({ onAgregar, personas }: InputFormProps) {
 
   return (
     <section className="seccion overflow-hidden">
-      <div className="bg-gradient-alianza px-4 py-3 sm:px-5">
-        <div className="flex items-center gap-2 text-white">
-          <Sparkles size={18} className="text-alianza-celeste" />
-          <h2 className="text-sm font-bold tracking-tight sm:text-base">Captura rápida de pedido</h2>
+      <div className="relative overflow-hidden bg-gradient-alianza px-4 py-3 sm:px-5">
+        <span className="rayas" />
+        <div className="relative">
+          <div className="flex items-center gap-2 text-white">
+            <Sparkles size={18} className="text-alianza-celeste" />
+            <h2 className="text-sm font-bold tracking-tight sm:text-base">Captura rápida de pedido</h2>
+          </div>
+          <p className="mt-0.5 text-xs text-alianza-celeste">
+            Ej: <span className="font-mono">🔴 Shi: revisar grease ball mill 034-001</span>
+          </p>
         </div>
-        <p className="mt-0.5 text-xs text-alianza-celeste">
-          Ej: <span className="font-mono">🔴 Shi: revisar grease ball mill 034-001</span>
-        </p>
       </div>
 
       <div className="p-4 sm:p-5">

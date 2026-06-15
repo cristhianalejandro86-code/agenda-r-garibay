@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -16,16 +16,16 @@
   body {
     @apply bg-slate-100 text-slate-800 antialiased;
     font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    /* Fondo con destellos celestes (más marcados que el original) */
     background-image: radial-gradient(
-        1200px 600px at 80% -10%,
-        rgba(91, 164, 230, 0.18),
+        1100px 520px at 86% -10%,
+        rgba(91, 164, 230, 0.2),
         transparent 60%
       ),
-      radial-gradient(900px 500px at -10% 10%, rgba(0, 61, 165, 0.08), transparent 55%);
+      radial-gradient(820px 480px at -12% 6%, rgba(0, 61, 165, 0.09), transparent 56%);
     background-attachment: fixed;
   }
 
-  /* Tipografía base 16px, contraste alto */
   body,
   input,
   button,
@@ -34,7 +34,6 @@
     font-size: 16px;
   }
 
-  /* Focus visible accesible (celeste Alianza) */
   :focus-visible {
     outline: none;
     box-shadow: 0 0 0 3px rgba(91, 164, 230, 0.55);
@@ -46,21 +45,26 @@
     height: 10px;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(0, 61, 165, 0.25);
+    background: rgba(0, 61, 165, 0.22);
     border-radius: 999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 61, 165, 0.45);
+    background: rgba(0, 61, 165, 0.42);
   }
 }
 
 @layer components {
   .tarjeta {
-    @apply rounded-card border border-slate-200/80 bg-white shadow-n2;
+    @apply rounded-card border border-slate-200/70 bg-white shadow-n2;
   }
 
   .seccion {
-    @apply rounded-section border border-slate-200/80 bg-white shadow-n2;
+    @apply rounded-section border border-slate-200/70 bg-white shadow-n2;
+  }
+
+  /* Aplícalo a tarjetas que quieras que "floten" al pasar el cursor (KPIs, kanban) */
+  .tarjeta-hover {
+    @apply transition-all duration-300 ease-suave hover:-translate-y-1 hover:shadow-n4;
   }
 
   .btn {
@@ -69,7 +73,7 @@
   }
 
   .btn-primario {
-    @apply btn bg-gradient-alianza text-white shadow-n2 hover:shadow-n3 hover:brightness-110 active:brightness-95;
+    @apply btn bg-gradient-alianza text-white shadow-n2 hover:-translate-y-px hover:shadow-glow hover:brightness-110 active:translate-y-0 active:brightness-95;
   }
 
   .btn-secundario {
@@ -93,9 +97,19 @@
   .etiqueta {
     @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
   }
+
+  /* Overlay de franjas verticales tipo camiseta. Colócalo como <span className="rayas" />
+     dentro de cualquier contenedor navy con `relative overflow-hidden`. */
+  .rayas {
+    @apply pointer-events-none absolute inset-0 bg-rayas-alianza;
+  }
+
+  /* Cifras tipo "dorsal": tipografía display condensada y compacta. */
+  .cifra {
+    @apply font-display font-extrabold tracking-tight;
+  }
 }
 
-/* Respeta a quien prefiere menos movimiento */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

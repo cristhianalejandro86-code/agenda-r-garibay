@@ -340,7 +340,7 @@ export function StatsSummary({ pedidos }: StatsSummaryProps) {
               {PRIORIDAD_META[p].emoji}
             </span>
             <div>
-              <p className="text-2xl font-extrabold leading-none text-slate-900">
+              <p className="cifra text-3xl leading-none text-slate-900">
                 {stats.porPrioridad[p]}
               </p>
               <p className="mt-1 text-xs font-semibold text-slate-500">

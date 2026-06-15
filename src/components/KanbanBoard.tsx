@@ -35,7 +35,7 @@ function Tarjeta({
   const prio = PRIORIDAD_META[p.prioridad]
   return (
     <article
-      className="tarjeta animate-fade-in-up p-3 shadow-n1 transition-shadow hover:shadow-n2"
+      className="tarjeta tarjeta-hover animate-fade-in-up p-3"
       style={{ borderLeft: `4px solid ${prio.color}` }}
     >
       <div className="flex items-start justify-between gap-2">

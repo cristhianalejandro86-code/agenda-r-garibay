@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { LogOut, Wifi, WifiOff } from 'lucide-react'
+import { Shield } from './ui/Shield'
 
 interface HeaderProps {
   modo: 'realtime' | 'demo'
@@ -8,37 +8,26 @@ interface HeaderProps {
   onSignOut: () => void
 }
 
-/** Logo con PNG oficial y fallback al placeholder SVG si aún no existe. */
-function Logo({ nombre, alt, clase }: { nombre: string; alt: string; clase: string }) {
-  // TODO: reemplazar con el logo oficial (sube el .png a public/logos/)
-  const [src, setSrc] = useState(`/logos/${nombre}.png`)
-  return (
-    <img
-      src={src}
-      alt={alt}
-      className={clase}
-      onError={() => setSrc(`/logos/${nombre}.svg`)}
-      loading="eager"
-      decoding="async"
-    />
-  )
-}
-
 export function Header({ modo, sincronizando, email, onSignOut }: HeaderProps) {
   const enVivo = modo === 'realtime'
   return (
-    <header className="sticky top-0 z-30 bg-gradient-alianza text-white shadow-n3">
-      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6">
-        {/* Logo Alianza Lima */}
-        <Logo
-          nombre="alianza-lima"
-          alt="Alianza Lima"
-          clase="h-10 w-10 shrink-0 rounded-full bg-white/10 p-0.5"
-        />
+    <header className="sticky top-0 z-30 overflow-hidden bg-gradient-alianza text-white shadow-n3">
+      {/* Franjas verticales tipo camiseta */}
+      <span className="rayas" />
+      {/* Resplandor celeste */}
+      <div className="pointer-events-none absolute -top-3/4 right-[2%] h-[360px] w-[360px] rounded-full bg-[radial-gradient(circle,rgba(91,164,230,.4),transparent_70%)]" />
+      {/* Línea inferior con destello que recorre */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 overflow-hidden">
+        <div className="h-full w-2/5 animate-sheen bg-gradient-to-r from-transparent via-alianza-celeste-bright to-transparent" />
+      </div>
+
+      <div className="relative mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6">
+        {/* Escudo RG */}
+        <Shield size={38} className="shrink-0 drop-shadow-[0_4px_10px_rgba(2,12,35,.5)]" />
 
         {/* Título */}
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-extrabold leading-tight tracking-tight sm:text-xl">
+          <h1 className="truncate font-display text-2xl font-extrabold uppercase leading-none tracking-wide">
             Agenda R. Garibay
           </h1>
           <p className="hidden truncate text-xs text-alianza-celeste sm:block">
@@ -48,7 +37,7 @@ export function Header({ modo, sincronizando, email, onSignOut }: HeaderProps) {
 
         {/* Indicador de sincronización */}
         <div
-          className="hidden items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold backdrop-blur sm:flex"
+          className="hidden shrink-0 items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold backdrop-blur sm:flex"
           title={
             enVivo
               ? 'Sincronización en tiempo real con Supabase'
@@ -78,14 +67,11 @@ export function Header({ modo, sincronizando, email, onSignOut }: HeaderProps) {
           )}
         </div>
 
-        {/* Logo SHP */}
-        <Logo nombre="shp" alt="Shougang Hierro Perú" clase="h-9 w-auto shrink-0" />
-
         {/* Usuario / salir */}
         {email && (
           <button
             onClick={onSignOut}
-            className="ml-1 inline-flex items-center gap-1.5 rounded-btn bg-white/10 px-2.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+            className="ml-1 inline-flex shrink-0 items-center gap-1.5 rounded-btn border border-white/15 bg-white/10 px-2.5 py-2 text-xs font-bold text-white transition-colors hover:bg-white/20"
             title={`Cerrar sesión (${email})`}
           >
             <LogOut size={15} />
@@ -95,7 +81,7 @@ export function Header({ modo, sincronizando, email, onSignOut }: HeaderProps) {
       </div>
 
       {/* Indicador compacto en móvil */}
-      <div className="flex items-center justify-center gap-1.5 bg-black/10 py-1 text-[11px] font-semibold sm:hidden">
+      <div className="relative flex items-center justify-center gap-1.5 bg-black/10 py-1 text-[11px] font-semibold sm:hidden">
         {enVivo ? (
           <>
             <span className="h-2 w-2 animate-pulse-sync rounded-full bg-green-400" />

@@ -20,7 +20,7 @@ export function KpiCard({
   progreso,
 }: KpiCardProps) {
   return (
-    <div className="tarjeta group relative overflow-hidden p-4 transition-transform duration-300 ease-suave hover:-translate-y-0.5 hover:shadow-n3 sm:p-5">
+    <div className="tarjeta group relative overflow-hidden p-4 transition-all duration-300 ease-suave hover:-translate-y-1 hover:shadow-n4 sm:p-5">
       {/* Acento lateral */}
       <span
         className="absolute inset-y-0 left-0 w-1.5"
@@ -30,9 +30,8 @@ export function KpiCard({
       <div className="flex items-start justify-between gap-3 pl-1.5">
         <div className="min-w-0">
           <p className="etiqueta truncate">{etiqueta}</p>
-          <p className="mt-1 text-3xl font-extrabold leading-none tracking-tight text-slate-900">
-            {valor}
-          </p>
+          {/* Cifra tipo "dorsal" (Barlow Condensed) */}
+          <p className="cifra mt-1 text-[2.6rem] leading-[0.85] text-slate-900">{valor}</p>
           {subtitulo && (
             <p className="mt-1.5 text-xs font-medium text-slate-500">{subtitulo}</p>
           )}
