@@ -6,14 +6,11 @@ import {
   Check,
   X,
   StickyNote,
-  CalendarDays,
-  Tag,
-  Users,
   Wrench,
 } from 'lucide-react'
 import { ESTADO_META, PRIORIDAD_META, type Estado, type Pedido } from '../types'
 import { CategoriaChip, EstadoBadge, PrioridadBadge } from './ui/Badges'
-import { esVencido, etiquetaVence, formatVence } from '../lib/fechas'
+import { formatFecha } from '../services/exportService'
 
 interface PedidosTableProps {
   pedidos: Pedido[]
@@ -22,48 +19,14 @@ interface PedidosTableProps {
   onEliminar: (id: string) => void
 }
 
-/** Fecha de vencimiento con énfasis rojo si está vencido. */
-function VenceCell({ pedido }: { pedido: Pedido }) {
-  if (!pedido.fecha_vencimiento)
-    return <span className="text-xs text-slate-300">—</span>
-  const vencido = esVencido(pedido)
-  return (
-    <span className="flex flex-col leading-tight">
-      <span className={`text-xs font-semibold ${vencido ? 'text-red-600' : 'text-slate-700'}`}>
-        {formatVence(pedido.fecha_vencimiento)}
-      </span>
-      <span className={`text-[10px] ${vencido ? 'font-semibold text-red-500' : 'text-slate-400'}`}>
-        {etiquetaVence(pedido.fecha_vencimiento)}
-      </span>
-    </span>
-  )
-}
-
-/** Chips de meta: equipo · responsable · tipo (solo los presentes). */
+/** Meta: tipo de gestión (si está presente). */
 function MetaPedido({ pedido }: { pedido: Pedido }) {
-  const { equipo, responsable, tipo } = pedido
-  if (!equipo && !responsable && !tipo) return null
+  if (!pedido.tipo) return null
   return (
-    <>
-      {equipo && (
-        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500">
-          <Tag size={11} />
-          {equipo}
-        </span>
-      )}
-      {responsable && (
-        <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-          <Users size={11} />
-          {responsable}
-        </span>
-      )}
-      {tipo && (
-        <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
-          <Wrench size={11} />
-          {tipo}
-        </span>
-      )}
-    </>
+    <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
+      <Wrench size={11} />
+      {pedido.tipo}
+    </span>
   )
 }
 
@@ -181,7 +144,7 @@ export function PedidosTable({
                 <th className="px-4 py-3 font-semibold">Descripción</th>
                 <th className="px-4 py-3 font-semibold">Solicita</th>
                 <th className="px-4 py-3 font-semibold">Estado</th>
-                <th className="px-4 py-3 font-semibold">Vence</th>
+                <th className="px-4 py-3 font-semibold">Creado</th>
                 <th className="px-4 py-3 font-semibold">Notas</th>
                 <th className="px-4 py-3 text-right font-semibold">·</th>
               </tr>
@@ -197,22 +160,12 @@ export function PedidosTable({
                   </td>
                   <td className="px-4 py-3">
                     <p className="font-medium text-slate-800">{p.descripcion}</p>
-                    {(p.categorias.length > 0 ||
-                      p.reunion ||
-                      p.equipo ||
-                      p.responsable ||
-                      p.tipo) && (
+                    {(p.categorias.length > 0 || p.tipo) && (
                       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                         <MetaPedido pedido={p} />
                         {p.categorias.map((c) => (
                           <CategoriaChip key={c} categoria={c} />
                         ))}
-                        {p.reunion && (
-                          <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
-                            <CalendarDays size={11} />
-                            {p.reunion}
-                          </span>
-                        )}
                       </div>
                     )}
                   </td>
@@ -225,8 +178,8 @@ export function PedidosTable({
                       <AvanzarEstado pedido={p} onCambiarEstado={onCambiarEstado} />
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3">
-                    <VenceCell pedido={p} />
+                  <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-500">
+                    {formatFecha(p.created_at)}
                   </td>
                   <td className="px-4 py-3">
                     <NotaEditable pedido={p} onActualizar={onActualizar} />
@@ -283,7 +236,7 @@ export function PedidosTable({
                 <EstadoBadge estado={p.estado} />
                 <AvanzarEstado pedido={p} onCambiarEstado={onCambiarEstado} />
               </div>
-              <VenceCell pedido={p} />
+              <span className="text-[11px] text-slate-400">{formatFecha(p.created_at)}</span>
             </div>
             <div className="mt-2">
               <NotaEditable pedido={p} onActualizar={onActualizar} />

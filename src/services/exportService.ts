@@ -9,17 +9,13 @@ import {
   type FilterState,
   type Pedido,
 } from '../types'
-import { esVencido, formatVence } from '../lib/fechas'
 
 // ════════════════════════════════════════════════════════════════════
 //  Exportación con formato ejecutivo — Excel (exceljs) · PDF (jspdf) · CSV
 //
 //  `construir*` son ISOMÓRFICAS (navegador y Node); `exportTo*` envuelven
-//  la descarga. Las columnas se definen una sola vez (sistema de columnas):
-//  Excel/CSV usan el set COMPLETO; el PDF usa un subconjunto escaneable.
+//  la descarga. Columnas en un solo lugar: Excel/CSV completo, PDF escaneable.
 // ════════════════════════════════════════════════════════════════════
-
-// ── Filtro y utilidades de datos ─────────────────────────────────────
 
 export function filterPedidos(pedidos: Pedido[], f: FilterState): Pedido[] {
   const q = f.texto.trim().toLowerCase()
@@ -33,10 +29,8 @@ export function filterPedidos(pedidos: Pedido[], f: FilterState): Pedido[] {
         const blob = [
           p.descripcion,
           p.persona_solicita ?? '',
-          p.responsable ?? '',
-          p.equipo ?? '',
+          p.tipo ?? '',
           p.notas ?? '',
-          p.reunion ?? '',
           p.categorias.join(' '),
         ]
           .join(' ')
@@ -71,14 +65,14 @@ function selloArchivo(): string {
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`
 }
 
-// ── Definición de columnas (una sola fuente de verdad) ───────────────
+// ── Columnas (una sola fuente de verdad) ─────────────────────────────
 
-type ColTipo = 'prioridad' | 'estado' | 'vence'
+type ColTipo = 'prioridad' | 'estado'
 interface Col {
   h: string
   get: (p: Pedido) => string
-  xlW: number // ancho Excel
-  pdfW?: number | 'auto' // ancho PDF (pt)
+  xlW: number
+  pdfW?: number | 'auto'
   center?: boolean
   wrap?: boolean
   tipo?: ColTipo
@@ -86,19 +80,11 @@ interface Col {
 
 const C: Record<string, Col> = {
   fecha: { h: 'Creado', get: (p) => formatFecha(p.created_at), xlW: 17 },
-  vence: {
-    h: 'Vence',
-    get: (p) => (p.fecha_vencimiento ? formatVence(p.fecha_vencimiento) : ''),
-    xlW: 12,
-    pdfW: 66,
-    center: true,
-    tipo: 'vence',
-  },
   prioridad: {
     h: 'Prioridad',
     get: (p) => PRIORIDAD_META[p.prioridad].label,
     xlW: 11,
-    pdfW: 52,
+    pdfW: 56,
     center: true,
     tipo: 'prioridad',
   },
@@ -106,46 +92,28 @@ const C: Record<string, Col> = {
     h: 'Estado',
     get: (p) => ESTADO_META[p.estado].label,
     xlW: 13,
-    pdfW: 64,
+    pdfW: 70,
     center: true,
     tipo: 'estado',
   },
-  equipo: { h: 'Equipo', get: (p) => p.equipo ?? '', xlW: 14, pdfW: 66 },
-  descripcion: {
-    h: 'Descripción',
-    get: (p) => p.descripcion,
-    xlW: 46,
-    pdfW: 188,
-    wrap: true,
-  },
-  solicita: { h: 'Solicita', get: (p) => p.persona_solicita ?? '', xlW: 13, pdfW: 56 },
-  responsable: { h: 'Responsable', get: (p) => p.responsable ?? '', xlW: 14, pdfW: 70 },
-  tipo: { h: 'Tipo', get: (p) => p.tipo ?? '', xlW: 13 },
-  categorias: {
-    h: 'Categorías',
-    get: (p) => p.categorias.join(', '),
-    xlW: 18,
-    pdfW: 'auto',
-  },
-  reunion: { h: 'Reunión', get: (p) => p.reunion ?? '', xlW: 20 },
-  notas: { h: 'Notas', get: (p) => p.notas ?? '', xlW: 34, wrap: true },
+  descripcion: { h: 'Descripción', get: (p) => p.descripcion, xlW: 50, pdfW: 226, wrap: true },
+  solicita: { h: 'Solicita', get: (p) => p.persona_solicita ?? '', xlW: 14, pdfW: 64 },
+  tipo: { h: 'Tipo de gestión', get: (p) => p.tipo ?? '', xlW: 22, pdfW: 112 },
+  categorias: { h: 'Categorías', get: (p) => p.categorias.join(', '), xlW: 18, pdfW: 'auto' },
+  notas: { h: 'Notas', get: (p) => p.notas ?? '', xlW: 36, wrap: true },
 }
 
-// Excel/CSV: completo. PDF: subconjunto escaneable (lo que el gerente mira).
 const COLS_XL: Col[] = [
-  C.fecha, C.vence, C.prioridad, C.estado, C.equipo, C.descripcion,
-  C.solicita, C.responsable, C.tipo, C.categorias, C.reunion, C.notas,
+  C.fecha, C.prioridad, C.estado, C.descripcion, C.solicita, C.tipo, C.categorias, C.notas,
 ]
 const COLS_PDF: Col[] = [
-  C.vence, C.prioridad, C.estado, C.equipo, C.descripcion,
-  C.solicita, C.responsable, C.categorias,
+  C.prioridad, C.estado, C.descripcion, C.solicita, C.tipo, C.categorias,
 ]
 
 // ── Resumen ejecutivo / KPIs ─────────────────────────────────────────
 
 export interface Kpis {
   total: number
-  vencidos: number
   altaPendiente: number
   enProgreso: number
   completados: number
@@ -161,9 +129,8 @@ export function kpis(pedidos: Pedido[]): Kpis {
   const altaPendiente = pedidos.filter(
     (p) => p.prioridad === 'alta' && p.estado !== 'completado',
   ).length
-  const vencidos = pedidos.filter((p) => esVencido(p)).length
   const avance = total ? Math.round((completados / total) * 100) : 0
-  return { total, vencidos, altaPendiente, enProgreso, completados, nuevos, avance }
+  return { total, altaPendiente, enProgreso, completados, nuevos, avance }
 }
 
 export function resumen(pedidos: Pedido[]): {
@@ -195,7 +162,7 @@ export function resumen(pedidos: Pedido[]): {
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  CSV  (texto plano, reimportable)
+//  CSV
 // ════════════════════════════════════════════════════════════════════
 
 function celdaCSV(v: string): string {
@@ -207,11 +174,11 @@ export function construirCsv(pedidos: Pedido[]): string {
     COLS_XL.map((c) => c.h).join(';'),
     ...pedidos.map((p) => COLS_XL.map((c) => celdaCSV(c.get(p))).join(';')),
   ]
-  return '﻿' + lineas.join('\r\n') // BOM UTF-8: tildes OK en Excel
+  return '﻿' + lineas.join('\r\n') // BOM UTF-8
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  EXCEL  (exceljs — color por prioridad/estado, rojo si vencido)
+//  EXCEL
 // ════════════════════════════════════════════════════════════════════
 
 const XL = {
@@ -250,7 +217,6 @@ export async function construirWorkbook(pedidos: Pedido[]): Promise<Workbook> {
   })
   ws.columns = COLS_XL.map((c) => ({ width: c.xlW }))
 
-  // Título + metadatos
   ws.mergeCells(1, 1, 1, N)
   const t = ws.getCell(1, 1)
   t.value = 'AGENDA R. GARIBAY — Pedidos de mantenimiento'
@@ -268,7 +234,7 @@ export async function construirWorkbook(pedidos: Pedido[]): Promise<Workbook> {
         font: { name: 'Calibri', size: 10, color: { argb: XL.gris } },
       },
       {
-        text: `Vencidos: ${k.vencidos}   ·   Alta pendientes: ${k.altaPendiente}`,
+        text: `Alta pendientes: ${k.altaPendiente}`,
         font: { name: 'Calibri', size: 10, bold: true, color: { argb: XL.rojo } },
       },
     ],
@@ -278,7 +244,6 @@ export async function construirWorkbook(pedidos: Pedido[]): Promise<Workbook> {
   ws.getRow(2).height = 18
   ws.getRow(3).height = 6
 
-  // Encabezados (fila 4)
   const head = ws.getRow(4)
   COLS_XL.forEach((c, i) => {
     const cell = head.getCell(i + 1)
@@ -289,17 +254,15 @@ export async function construirWorkbook(pedidos: Pedido[]): Promise<Workbook> {
   })
   head.height = 22
 
-  // Datos
   pedidos.forEach((p, idx) => {
     const r = ws.addRow(COLS_XL.map((c) => c.get(p)))
     const lineas = Math.max(
       1,
-      Math.ceil((p.descripcion?.length ?? 0) / 46),
-      Math.ceil((p.notas?.length ?? 0) / 34),
+      Math.ceil((p.descripcion?.length ?? 0) / 50),
+      Math.ceil((p.notas?.length ?? 0) / 36),
     )
     r.height = 15 * lineas + 10
     const zebra = idx % 2 === 1
-    const vencido = esVencido(p)
     COLS_XL.forEach((c, ci) => {
       const cell = r.getCell(ci + 1)
       cell.font = { name: 'Calibri', size: 10, color: { argb: XL.ink } }
@@ -319,9 +282,6 @@ export async function construirWorkbook(pedidos: Pedido[]): Promise<Workbook> {
         const m = XL_ESTADO[ESTADO_META[p.estado].label]
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: m.bg } }
         cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: m.fg } }
-      } else if (c.tipo === 'vence' && vencido) {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFBDDDD' } }
-        cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: XL.rojo } }
       }
     })
   })
@@ -337,9 +297,9 @@ export async function construirWorkbook(pedidos: Pedido[]): Promise<Workbook> {
 
   // ── Hoja Resumen ──
   const rs = wb.addWorksheet('Resumen', { pageSetup: { orientation: 'portrait' } })
-  rs.columns = [18, 18, 18, 18, 18].map((width) => ({ width }))
+  rs.columns = [20, 20, 20, 20].map((width) => ({ width }))
 
-  rs.mergeCells(1, 1, 1, 5)
+  rs.mergeCells(1, 1, 1, 4)
   const rt = rs.getCell(1, 1)
   rt.value = 'RESUMEN EJECUTIVO'
   rt.font = { size: 15, bold: true, color: { argb: 'FFFFFFFF' } }
@@ -349,8 +309,7 @@ export async function construirWorkbook(pedidos: Pedido[]): Promise<Workbook> {
 
   const tarjetas: [string, string | number, string][] = [
     ['Total', k.total, XL.brand],
-    ['Vencidos', k.vencidos, 'FFC81E1E'],
-    ['Alta · pend.', k.altaPendiente, 'FFEA580C'],
+    ['Alta · pend.', k.altaPendiente, 'FFC81E1E'],
     ['En progreso', k.enProgreso, 'FF6D28D9'],
     ['Avance', `${k.avance}%`, 'FF15803D'],
   ]
@@ -408,7 +367,7 @@ export async function construirWorkbook(pedidos: Pedido[]): Promise<Workbook> {
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  PDF  (jspdf + autotable — tira de KPIs, color por prioridad/estado/vencido)
+//  PDF
 // ════════════════════════════════════════════════════════════════════
 
 const PDF_PRIORIDAD: Record<string, { bg: [number, number, number]; fg: [number, number, number] }> = {
@@ -421,7 +380,6 @@ const PDF_ESTADO: Record<string, { bg: [number, number, number]; fg: [number, nu
   'En progreso': { bg: [239, 233, 251], fg: [109, 40, 217] },
   Completado: { bg: [230, 245, 236], fg: [21, 128, 61] },
 }
-const PDF_VENCIDO = { bg: [248, 209, 209] as [number, number, number], fg: [185, 28, 28] as [number, number, number] }
 
 export async function construirPdf(pedidos: Pedido[]): Promise<jsPDF> {
   const { jsPDF } = await import('jspdf')
@@ -430,9 +388,7 @@ export async function construirPdf(pedidos: Pedido[]): Promise<jsPDF> {
   const W = doc.internal.pageSize.getWidth()
   const M = 40
   const k = kpis(pedidos)
-  const overdue = pedidos.map((p) => esVencido(p))
 
-  // Banda de marca
   doc.setFillColor(0, 61, 165)
   doc.rect(0, 0, W, 56, 'F')
   doc.setTextColor(255, 255, 255)
@@ -447,16 +403,14 @@ export async function construirPdf(pedidos: Pedido[]): Promise<jsPDF> {
     align: 'right',
   })
 
-  // Tira de KPIs (5)
   const tarjetas: [string, string, [number, number, number]][] = [
     ['TOTAL', String(k.total), [0, 61, 165]],
-    ['VENCIDOS', String(k.vencidos), [200, 30, 30]],
-    ['ALTA · PEND.', String(k.altaPendiente), [234, 88, 12]],
+    ['ALTA · PENDIENTES', String(k.altaPendiente), [200, 30, 30]],
     ['EN PROGRESO', String(k.enProgreso), [109, 40, 217]],
     ['AVANCE', `${k.avance}%`, [21, 128, 61]],
   ]
   const gap = 12
-  const cardW = (W - M * 2 - gap * 4) / 5
+  const cardW = (W - M * 2 - gap * 3) / 4
   const cardY = 70
   const cardH = 50
   tarjetas.forEach(([label, val, color], i) => {
@@ -474,10 +428,8 @@ export async function construirPdf(pedidos: Pedido[]): Promise<jsPDF> {
     doc.text(val, x + 14, cardY + 40)
   })
 
-  // Índices de columna por tipo (para colorear)
   const idxPrioridad = COLS_PDF.findIndex((c) => c.tipo === 'prioridad')
   const idxEstado = COLS_PDF.findIndex((c) => c.tipo === 'estado')
-  const idxVence = COLS_PDF.findIndex((c) => c.tipo === 'vence')
 
   const columnStyles: Record<number, { cellWidth: number | 'auto'; halign?: 'center'; fontStyle?: 'bold' }> = {}
   COLS_PDF.forEach((c, i) => {
@@ -513,14 +465,10 @@ export async function construirPdf(pedidos: Pedido[]): Promise<jsPDF> {
       } else if (data.column.index === idxEstado && PDF_ESTADO[raw]) {
         data.cell.styles.fillColor = PDF_ESTADO[raw].bg
         data.cell.styles.textColor = PDF_ESTADO[raw].fg
-      } else if (data.column.index === idxVence && overdue[data.row.index]) {
-        data.cell.styles.fillColor = PDF_VENCIDO.bg
-        data.cell.styles.textColor = PDF_VENCIDO.fg
       }
     },
   })
 
-  // Pie con paginación
   const paginas = doc.getNumberOfPages()
   for (let i = 1; i <= paginas; i++) {
     doc.setPage(i)
