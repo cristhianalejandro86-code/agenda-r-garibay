@@ -47,7 +47,6 @@ export function InputForm({ onAgregar, personas }: InputFormProps) {
   if (!persona.trim()) faltan.push('solicita')
   if (categorias.length === 0) faltan.push('categoría')
   if (!tipoGestion.trim()) faltan.push('tipo de gestión')
-  if (!notas.trim()) faltan.push('notas')
   const completo = faltan.length === 0
 
   function onDescripcion(v: string) {
@@ -73,7 +72,7 @@ export function InputForm({ onAgregar, personas }: InputFormProps) {
         persona_solicita: persona.trim(),
         categorias,
         estado: 'nuevo',
-        notas: notas.trim(),
+        notas: notas.trim() || null,
         tipo: tipoGestion.trim(),
         // Campos retirados del registro:
         reunion: null,
@@ -237,7 +236,7 @@ export function InputForm({ onAgregar, personas }: InputFormProps) {
 
         {/* Notas */}
         <div>
-          <span className="etiqueta">Notas *</span>
+          <span className="etiqueta">Notas (opcional)</span>
           <div className="relative mt-1.5">
             <StickyNote size={15} className="pointer-events-none absolute left-3 top-3 text-slate-400" />
             <textarea

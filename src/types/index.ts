@@ -6,7 +6,7 @@ export type Prioridad = 'alta' | 'normal' | 'baja'
 export type Estado = 'nuevo' | 'en_progreso' | 'completado'
 
 /** Circuitos de la planta usados como categorías de un pedido. */
-export type Categoria = 'HPGR' | 'Filtros' | 'Magnética' | 'Relaves' | 'Otros'
+export type Categoria = 'HPGR' | 'Filtros' | 'Magnética' | 'Relaves' | 'Gestión'
 
 /** Fila de la tabla `public.pedidos` en Supabase. */
 export interface Pedido {
@@ -83,7 +83,7 @@ export interface ExportOptions {
 
 export const PRIORIDADES: Prioridad[] = ['alta', 'normal', 'baja']
 export const ESTADOS: Estado[] = ['nuevo', 'en_progreso', 'completado']
-export const CATEGORIAS: Categoria[] = ['HPGR', 'Filtros', 'Magnética', 'Relaves', 'Otros']
+export const CATEGORIAS: Categoria[] = ['HPGR', 'Filtros', 'Magnética', 'Relaves', 'Gestión']
 
 export const PRIORIDAD_META: Record<
   Prioridad,
@@ -118,6 +118,6 @@ export const CATEGORIA_META: Record<Categoria, { color: string }> = {
   Filtros: { color: '#0E7490' },
   Magnética: { color: '#7C3AED' },
   Relaves: { color: '#B45309' },
-  Otros: { color: '#64748B' },
+  'Gestión': { color: '#64748B' },
 }
 

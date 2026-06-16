@@ -23,8 +23,8 @@ const KEYWORDS_CATEGORIA: Record<Categoria, string[]> = {
   Filtros: ['filtro', 'filtros', 'filter', 'prensa'],
   Magnética: ['magnética', 'magnetica', 'magnetic', 'mag', 'separador'],
   Relaves: ['relave', 'relaves', 'tailings', 'espesador', 'thickener'],
-  // 'Otros' no tiene palabras clave: se elige manualmente cuando no aplica un circuito.
-  Otros: [],
+  // 'Gestión' no tiene palabras clave: se elige manualmente cuando no aplica un circuito.
+  'Gestión': [],
 }
 
 // Regex de persona: "Nombre: descripción". Soporta tildes y nombres
